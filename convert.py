@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-############################
-# Created by: Kodie Becker #
-# Created on: 2021-05-26   #
-############################
+# Created on: 2021-05-26
 """This scipt allows for a list of folders containing raw DVD files to be
     converted using MakeMKV."""
 
@@ -18,11 +15,11 @@ from folderparser import parsefolder
 
 
 def _init():
-    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    ROOT = os.path.dirname(os.path.abspath(__file__))
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("folder",
-        help="The input folder containing movie subfolders.")
+    parser.add_argument("input",
+        help="The input folder containing movie subfolders. Movie list file if -l specified.")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-l","--list",
         help="Flag to use if input is a pre-formatted list from folder parser",
@@ -32,26 +29,24 @@ def _init():
         action="store_true")
     parser.add_argument("-o","--output", help="Output folder")
 
-    return (PROJECT_ROOT, parser.parse_args())
+    return (ROOT, parser.parse_args())
 
 
-def convert(PROJECT_ROOT, args):
+def convert(ROOT, args):
     if args.folderparser:
-        parsefolder(folder)
+        writeFolderList(args.input, parseFolder(args.input))
 
-    done_file_path = PROJECT_ROOT + "/completed_files.csv"
-
-    if args.l:
-        with open("folderlist.csv","r") as file:
+    if args.list:
+        with open(args.input, "r") as file:
             folder_list = csv.reader(file, dialect="excel")
             root_folder = folder_list[0]
             movie_list = folder_list[1:]
-            if root_folder == folder:
-                pass
-            else:
+            if root_folder != args.input:
                 raise InputError("CSV list should have been generated in the same folder as the input.")
     else:
-        movie_list = folder
+        movie_list = parseFolder(args.input)
+
+    done_file_path = ROOT + "/completed_files.csv"
 
     if os.path.isfile(done_file_path):
         with open(done_file_path, "r") as file:
@@ -59,11 +54,16 @@ def convert(PROJECT_ROOT, args):
     else:
         done_files = []
 
+    if args.output:
+        output_folder = args.output
+    else:
+        output_folder = ROOT
+
     for movie in movie_list:
         if movie in done_files:
             pass
         else:
-            subprocess.run("makemkvcon -r mkv file:{0} all".format(file_path))
+            subprocess.run("makemkvcon -r mkv file:{0} all {1}".format(file_path, output_folder))
             done_files.append(movie)
             with open(done_file_path, "w") as file:
                 json.dump(done_files, file)
@@ -75,5 +75,5 @@ def convert(PROJECT_ROOT, args):
 
 
 if __name__ == '__main__':
-    PROJECT_ROOT, args = _init()
-    convert(PROJECT_ROOT, args)
+    ROOT, args = _init()
+    convert(ROOT, args)
